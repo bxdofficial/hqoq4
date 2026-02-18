@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}إنشاء حساب | حقوقي{% endblock %}
+
+{% block content %}
+<section class="form-wrap glass fade-in">
+  <h2>إنشاء حساب جديد</h2>
+  <p class="subtitle">انضم إلى منصة حقوقي اليوم</p>
+  
+  <form method="post" action="/register" id="register-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    
+    <div class="form-group">
+      <label for="full_name">
+        <i data-lucide="user" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+        الاسم الكامل
+      </label>
+      <input 
+        name="full_name" 
+        id="full_name"
+        type="text"
+        placeholder="أدخل اسمك الكامل"
+        required 
+        autocomplete="name"
+      />
+    </div>
+    
+    <div class="form-group">
+      <label for="email">
+        <i data-lucide="mail" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+        البريد الإلكتروني
+      </label>
+      <input 
+        name="email" 
+        id="email"
+        type="email" 
+        placeholder="example@email.com"
+        required 
+        autocomplete="email"
+      />
+    </div>
+    
+    <div class="form-group">
+      <label for="password">
+        <i data-lucide="lock" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+        كلمة المرور (8 أحرف على الأقل)
+      </label>
+      <input 
+        name="password" 
+        id="password"
+        type="password" 
+        placeholder="••••••••"
+        minlength="8" 
+        required 
+        autocomplete="new-password"
+      />
+    </div>
+    
+    <div class="form-group">
+      <label for="user_type">
+        <i data-lucide="users" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+        نوع الحساب
+      </label>
+      <select name="user_type" id="user_type">
+        <option value="client">👤 عميل - أبحث عن محامي</option>
+        <option value="lawyer">⚖️ محامي - أقدم خدمات قانونية</option>
+      </select>
+    </div>
+    
+    <div id="bar-field" class="form-group hidden">
+      <label for="bar_registration_number">
+        <i data-lucide="badge" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+        رقم القيد بنقابة المحامين
+      </label>
+      <input 
+        name="bar_registration_number" 
+        id="bar_registration_number"
+        type="text"
+        placeholder="أدخل رقم القيد"
+      />
+      <small style="color: var(--text-muted); font-size: 12px; margin-top: 6px; display: block;">
+        سيتم التحقق من رقم القيد من نقابة المحامين
+      </small>
+    </div>
+    
+    <div class="form-actions">
+      <button class="btn btn-gold" type="submit">
+        <i data-lucide="user-plus" style="width:18px;height:18px"></i>
+        إنشاء الحساب
+      </button>
+    </div>
+  </form>
+  
+  <div class="form-footer">
+    <p>لديك حساب بالفعل؟ <a href="/login">سجّل دخولك</a></p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const typeSelect = document.getElementById('user_type');
+  const barField = document.getElementById('bar-field');
+  const barInput = document.getElementById('bar_registration_number');
+  
+  if (typeSelect && barField) {
+    const toggle = () => {
+      const isLawyer = typeSelect.value === 'lawyer';
+      barField.classList.toggle('hidden', !isLawyer);
+      barInput.required = isLawyer;
+    };
+    typeSelect.addEventListener('change', toggle);
+    toggle();
+  }
+</script>
+{% endblock %}

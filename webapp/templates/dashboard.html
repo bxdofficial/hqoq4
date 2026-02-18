@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block title %}لوحة التحكم | حقوقي{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<section class="dashboard-head glass fade-in">
+  <div class="user-info">
+    <h2>مرحباً، {{ user.full_name }} 👋</h2>
+    <p>
+      <i data-lucide="mail" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-left:4px"></i>
+      {{ user.email }}
+      <span style="margin: 0 12px;">•</span>
+      <span class="badge {% if user.user_type == 'lawyer' %}badge-gold{% elif user.user_type == 'admin' %}badge-error{% else %}badge{% endif %}">
+        {% if user.user_type == 'client' %}عميل{% elif user.user_type == 'lawyer' %}محامي{% else %}مدير{% endif %}
+      </span>
+      {% if user.is_verified %}
+      <span class="badge badge-verified" style="margin-right: 8px;">
+        <i data-lucide="badge-check" style="width:12px;height:12px"></i>
+        موثق
+      </span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="user-avatar">
+    {{ user.full_name[0] }}
+  </div>
+</section>
+
+<!-- Quick Stats -->
+<section class="stats-grid stagger">
+  <div class="glass stat-card">
+    <div class="stat-icon">📁</div>
+    <div class="stat-number">{{ cases|length }}</div>
+    <div class="stat-label">قضاياي</div>
+  </div>
+  <div class="glass stat-card">
+    <div class="stat-icon">⏳</div>
+    <div class="stat-number">{{ cases|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+    <div class="stat-label">قيد الانتظار</div>
+  </div>
+  <div class="glass stat-card">
+    <div class="stat-icon">🔄</div>
+    <div class="stat-number">{{ cases|selectattr('status', 'equalto', 'in_progress')|list|length }}</div>
+    <div class="stat-label">قيد التنفيذ</div>
+  </div>
+  <div class="glass stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-number">{{ cases|selectattr('status', 'equalto', 'completed')|list|length }}</div>
+    <div class="stat-label">مكتملة</div>
+  </div>
+</section>
+
+<!-- Quick Actions -->
+<section class="glass" style="padding: 24px; margin-bottom: 24px;">
+  <h3 style="margin-bottom: 16px;">
+    <i data-lucide="zap" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-left:8px;color:var(--gold)"></i>
+    إجراءات سريعة
+  </h3>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+    {% if user.user_type == 'client' %}
+    <a href="/cases/new" class="btn btn-gold">
+      <i data-lucide="plus" style="width:18px;height:18px"></i>
+      إنشاء قضية جديدة
+    </a>
+    <a href="/search" class="btn">
+      <i data-lucide="search" style="width:18px;height:18px"></i>
+      البحث عن محامي
+    </a>
+    {% endif %}
+    <a href="/ai-assistant" class="btn">
+      <i data-lucide="bot" style="width:18px;height:18px"></i>
+      المساعد الذكي
+    </a>
+    <a href="/profile" class="btn">
+      <i data-lucide="user" style="width:18px;height:18px"></i>
+      ملفي الشخصي
+    </a>
+    <a href="/payments" class="btn">
+      <i data-lucide="credit-card" style="width:18px;height:18px"></i>
+      المدفوعات
+    </a>
+  </div>
+</section>
+
+<!-- Cases Table -->
+<section class="table-wrap glass fade-in">
+  <h3>
+    <i data-lucide="folder" style="width:20px;height:20px;color:var(--gold)"></i>
+    قضاياي الأخيرة
+    {% if user.user_type == 'client' %}
+    <a href="/cases/new" class="btn btn-sm btn-gold" style="margin-right: auto;">
+      <i data-lucide="plus" style="width:14px;height:14px"></i>
+      قضية جديدة
+    </a>
+    {% endif %}
+  </h3>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>العنوان</th>
+        <th>النوع</th>
+        <th>الحالة</th>
+        <th>التاريخ</th>
+        <th>الإجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cases %}
+      <tr>
+        <td><span style="color: var(--text-muted);">#{{ c.id }}</span></td>
+        <td>
+          <strong>{{ c.title }}</strong>
+        </td>
+        <td>{{ c.case_type }}</td>
+        <td>
+          {% if c.status == 'pending' %}
+            <span class="badge badge-warning">قيد الانتظار</span>
+          {% elif c.status == 'accepted' %}
+            <span class="badge badge-gold">مقبولة</span>
+          {% elif c.status == 'in_progress' %}
+            <span class="badge">قيد التنفيذ</span>
+          {% elif c.status == 'completed' %}
+            <span class="badge badge-success">مكتملة</span>
+          {% elif c.status == 'rejected' %}
+            <span class="badge badge-error">مرفوضة</span>
+          {% elif c.status == 'cancelled' %}
+            <span class="badge badge-error">ملغاة</span>
+          {% else %}
+            <span class="badge">{{ c.status }}</span>
+          {% endif %}
+        </td>
+        <td style="color: var(--text-muted); font-size: 13px;">{{ c.created_at[:10] if c.created_at else '-' }}</td>
+        <td>
+          <a href="/cases/{{ c.id }}" class="btn btn-sm">
+            <i data-lucide="eye" style="width:14px;height:14px"></i>
+            عرض
+          </a>
+          {% if c.lawyer_user_id %}
+          <a href="/cases/{{ c.id }}/messages" class="btn btn-sm">
+            <i data-lucide="message-circle" style="width:14px;height:14px"></i>
+            المحادثة
+          </a>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="table-empty">
+          <div class="empty-state">
+            <div class="icon">📁</div>
+            <h3>لا توجد قضايا بعد</h3>
+            <p>ابدأ بإنشاء قضيتك الأولى أو تصفح المحامين</p>
+            {% if user.user_type == 'client' %}
+            <a href="/cases/new" class="btn btn-gold">
+              <i data-lucide="plus" style="width:18px;height:18px"></i>
+              إنشاء قضية جديدة
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

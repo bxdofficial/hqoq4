@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}البحث عن محامي | حقوقي{% endblock %}
+
+{% block content %}
+<!-- Search Header -->
+<section class="search-header glass fade-in">
+  <h2>
+    <i data-lucide="search" style="width:28px;height:28px;display:inline-block;vertical-align:middle;margin-left:12px;color:var(--gold)"></i>
+    ابحث عن محامي
+  </h2>
+  <p>اختر محامياً مناسباً من بين أفضل المحامين الموثقين في مصر</p>
+  
+  <div class="search-box">
+    <input type="text" id="search-input" placeholder="ابحث بالاسم أو التخصص أو المنطقة..." />
+    <button class="btn btn-gold" onclick="filterLawyers()">
+      <i data-lucide="search" style="width:18px;height:18px"></i>
+      بحث
+    </button>
+  </div>
+  
+  <div class="search-filters">
+    <button class="filter-btn active" data-filter="all">الكل</button>
+    <button class="filter-btn" data-filter="verified">موثق</button>
+    <button class="filter-btn" data-filter="cairo">القاهرة</button>
+    <button class="filter-btn" data-filter="alex">الإسكندرية</button>
+    <button class="filter-btn" data-filter="giza">الجيزة</button>
+  </div>
+</section>
+
+<!-- Results Count -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 8px;">
+  <p style="color: var(--text-secondary);">
+    <i data-lucide="users" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+    <span id="results-count">{{ lawyers|length }}</span> محامي متاح
+  </p>
+  <select id="sort-select" style="width: auto; padding: 8px 16px; font-size: 13px;">
+    <option value="verified">الأكثر توثيقاً</option>
+    <option value="fee-low">الأقل سعراً</option>
+    <option value="fee-high">الأعلى سعراً</option>
+    <option value="name">الاسم</option>
+  </select>
+</div>
+
+<!-- Lawyers Grid -->
+<section class="grid3 stagger" id="lawyers-grid">
+{% for l in lawyers %}
+  <article class="glass card lawyer-card" data-name="{{ l.full_name }}" data-verified="{{ l.is_verified }}" data-city="{{ l.city or '' }}" data-governorate="{{ l.governorate or '' }}" data-fee="{{ l.min_consultation_fee or 400 }}">
+    <div class="avatar">
+      {{ l.full_name[0] if l.full_name else '?' }}
+    </div>
+    <h3>{{ l.full_name }}</h3>
+    
+    {% if l.is_verified %}
+    <span class="badge badge-verified" style="margin-bottom: 12px;">
+      <i data-lucide="badge-check" style="width:12px;height:12px"></i>
+      محامي موثق
+    </span>
+    {% else %}
+    <span class="badge badge-warning" style="margin-bottom: 12px;">
+      <i data-lucide="clock" style="width:12px;height:12px"></i>
+      قيد التحقق
+    </span>
+    {% endif %}
+    
+    <div class="info">
+      <div class="info-item">
+        <i data-lucide="badge" style="width:14px;height:14px"></i>
+        رقم القيد: {{ l.bar_registration_number or 'غير متاح' }}
+      </div>
+      <div class="info-item">
+        <i data-lucide="map-pin" style="width:14px;height:14px"></i>
+        {{ l.governorate or 'مصر' }}{% if l.city %} / {{ l.city }}{% endif %}
+      </div>
+    </div>
+    
+    <div class="fee">
+      <i data-lucide="banknote" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-left:6px"></i>
+      يبدأ من {{ l.min_consultation_fee or 400 }} ج.م
+    </div>
+    
+    <div style="display: flex; gap: 8px; justify-content: center;">
+      <a href="/lawyers/{{ l.id }}" class="btn btn-sm">
+        <i data-lucide="user" style="width:14px;height:14px"></i>
+        الملف الشخصي
+      </a>
+      {% if user %}
+      <a href="/cases/new?lawyer_id={{ l.id }}" class="btn btn-sm btn-gold">
+        <i data-lucide="plus" style="width:14px;height:14px"></i>
+        طلب استشارة
+      </a>
+      {% endif %}
+    </div>
+  </article>
+{% else %}
+  <div class="glass empty-state" style="grid-column: 1 / -1;">
+    <div class="icon">👥</div>
+    <h3>لا يوجد محامون حالياً</h3>
+    <p>سيتم إضافة محامين قريباً، يمكنك التسجيل كمحامي</p>
+    <a href="/register" class="btn btn-gold">
+      <i data-lucide="user-plus" style="width:18px;height:18px"></i>
+      سجّل كمحامي
+    </a>
+  </div>
+{% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Filter functionality
+  const searchInput = document.getElementById('search-input');
+  const lawyersGrid = document.getElementById('lawyers-grid');
+  const resultsCount = document.getElementById('results-count');
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  
+  let currentFilter = 'all';
+  
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      filterLawyers();
+    });
+  });
+  
+  function filterLawyers() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const cards = lawyersGrid.querySelectorAll('.lawyer-card');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+      const name = card.dataset.name.toLowerCase();
+      const city = card.dataset.city.toLowerCase();
+      const governorate = card.dataset.governorate.toLowerCase();
+      const isVerified = card.dataset.verified === '1';
+      
+      let matchesSearch = name.includes(searchTerm) || city.includes(searchTerm) || governorate.includes(searchTerm);
+      let matchesFilter = true;
+      
+      if (currentFilter === 'verified') {
+        matchesFilter = isVerified;
+      } else if (currentFilter === 'cairo') {
+        matchesFilter = governorate.includes('قاهرة') || governorate.includes('cairo');
+      } else if (currentFilter === 'alex') {
+        matchesFilter = governorate.includes('إسكندرية') || governorate.includes('alexandria');
+      } else if (currentFilter === 'giza') {
+        matchesFilter = governorate.includes('جيزة') || governorate.includes('giza');
+      }
+      
+      if (matchesSearch && matchesFilter) {
+        card.style.display = '';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+    
+    resultsCount.textContent = visibleCount;
+  }
+  
+  searchInput.addEventListener('input', filterLawyers);
+  
+  // Sort functionality
+  document.getElementById('sort-select').addEventListener('change', function() {
+    const cards = Array.from(lawyersGrid.querySelectorAll('.lawyer-card'));
+    
+    cards.sort((a, b) => {
+      switch(this.value) {
+        case 'verified':
+          return (b.dataset.verified === '1' ? 1 : 0) - (a.dataset.verified === '1' ? 1 : 0);
+        case 'fee-low':
+          return parseInt(a.dataset.fee) - parseInt(b.dataset.fee);
+        case 'fee-high':
+          return parseInt(b.dataset.fee) - parseInt(a.dataset.fee);
+        case 'name':
+          return a.dataset.name.localeCompare(b.dataset.name, 'ar');
+        default:
+          return 0;
+      }
+    });
+    
+    cards.forEach(card => lawyersGrid.appendChild(card));
+  });
+</script>
+{% endblock %}

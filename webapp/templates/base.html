@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="حقوقي - منصة قانونية مصرية احترافية تربط العملاء بالمحامين المرخصين" />
+  <meta name="theme-color" content="#0a0f1c" />
+  <title>{% block title %}حقوقي{% endblock %}</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/style.css" />
+  
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+  
+  <!-- Header -->
+  <header class="topbar glass">
+    <a class="brand" href="/">
+      <span class="brand-icon">⚖️</span>
+      <span class="brand-text">حقوقي</span>
+    </a>
+    <nav>
+      <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
+        <i data-lucide="home" style="width:18px;height:18px"></i>
+        <span>الرئيسية</span>
+      </a>
+      <a href="/search" class="{% if request.url.path == '/search' %}active{% endif %}">
+        <i data-lucide="search" style="width:18px;height:18px"></i>
+        <span>ابحث عن محامي</span>
+      </a>
+      {% if user %}
+        <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}active{% endif %}">
+          <i data-lucide="layout-dashboard" style="width:18px;height:18px"></i>
+          <span>لوحة التحكم</span>
+        </a>
+        <a href="/ai-assistant" class="{% if request.url.path == '/ai-assistant' %}active{% endif %}">
+          <i data-lucide="bot" style="width:18px;height:18px"></i>
+          <span>المساعد الذكي</span>
+        </a>
+        {% if user.user_type == 'admin' %}
+        <a href="/admin" class="{% if '/admin' in request.url.path %}active{% endif %}">
+          <i data-lucide="shield" style="width:18px;height:18px"></i>
+          <span>الإدارة</span>
+        </a>
+        {% endif %}
+        <a href="/logout" class="btn btn-sm">
+          <i data-lucide="log-out" style="width:16px;height:16px"></i>
+          <span>خروج</span>
+        </a>
+      {% else %}
+        <a href="/login" class="{% if request.url.path == '/login' %}active{% endif %}">
+          <i data-lucide="log-in" style="width:18px;height:18px"></i>
+          <span>دخول</span>
+        </a>
+        <a href="/register" class="btn btn-gold btn-sm">
+          <i data-lucide="user-plus" style="width:16px;height:16px"></i>
+          <span>إنشاء حساب</span>
+        </a>
+      {% endif %}
+    </nav>
+  </header>
+  
+  <!-- Main Content -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>⚖️ حقوقي</h4>
+        <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.8;">
+          منصة قانونية مصرية احترافية تربط العملاء بالمحامين المرخصين بشكل آمن وموثوق.
+        </p>
+      </div>
+      <div class="footer-section">
+        <h4>روابط سريعة</h4>
+        <ul>
+          <li><a href="/">الرئيسية</a></li>
+          <li><a href="/search">البحث عن محامي</a></li>
+          <li><a href="/register">إنشاء حساب</a></li>
+          <li><a href="/login">تسجيل الدخول</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>خدماتنا</h4>
+        <ul>
+          <li><a href="#">الاستشارات القانونية</a></li>
+          <li><a href="#">إدارة القضايا</a></li>
+          <li><a href="#">التوثيق القانوني</a></li>
+          <li><a href="#">المساعد الذكي</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>تواصل معنا</h4>
+        <ul>
+          <li><a href="#">📧 support@hoqouqi.com</a></li>
+          <li><a href="#">📞 +20 123 456 7890</a></li>
+          <li><a href="#">📍 القاهرة، مصر</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 حقوقي - جميع الحقوق محفوظة</p>
+      <div class="social-links">
+        <a href="#" title="Facebook"><i data-lucide="facebook" style="width:18px;height:18px"></i></a>
+        <a href="#" title="Twitter"><i data-lucide="twitter" style="width:18px;height:18px"></i></a>
+        <a href="#" title="LinkedIn"><i data-lucide="linkedin" style="width:18px;height:18px"></i></a>
+        <a href="#" title="Instagram"><i data-lucide="instagram" style="width:18px;height:18px"></i></a>
+      </div>
+    </div>
+  </footer>
+  
+  <!-- Scripts -->
+  <script src="/static/js/app.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
