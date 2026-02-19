@@ -67,6 +67,19 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (case_id) REFERENCES cases(id)
 );
 
+CREATE TABLE IF NOT EXISTS case_documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  case_id INTEGER NOT NULL,
+  uploaded_by_user_id INTEGER NOT NULL,
+  original_filename TEXT NOT NULL,
+  storage_key TEXT UNIQUE NOT NULL,
+  mime_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+  FOREIGN KEY (uploaded_by_user_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS lawyer_verification_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   lawyer_user_id INTEGER NOT NULL,
@@ -100,6 +113,7 @@ def init_db() -> None:
         conn.execute('CREATE INDEX IF NOT EXISTS idx_cases_lawyer ON cases(lawyer_user_id)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_messages_case ON messages(case_id)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_payments_case ON payments(case_id)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_case_documents_case ON case_documents(case_id)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_logs(actor_user_id)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_verification_status ON lawyer_verification_requests(status)')
 

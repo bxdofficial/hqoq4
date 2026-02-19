@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -5,10 +7,11 @@ import time
 import urllib.error
 import urllib.request
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -29,6 +32,17 @@ AI_DEFAULT_POLICY = [
     'عند الحاجة يجب توجيه المستخدم لمحامٍ مرخّص داخل المنصة.',
     'احمِ خصوصية البيانات وتجنب طلب بيانات حساسة غير لازمة.',
 ]
+
+UPLOADS_DIR = Path(os.getenv('APP_UPLOADS_DIR', 'uploads'))
+MAX_CASE_DOCUMENT_SIZE = int(os.getenv('MAX_CASE_DOCUMENT_SIZE_BYTES', str(10 * 1024 * 1024)))
+ALLOWED_CASE_DOCUMENT_MIME_TYPES = {
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+SIGNED_URL_TTL_SECONDS = int(os.getenv('APP_SIGNED_URL_TTL_SECONDS', '600'))
 
 
 def is_secure_cookie_enabled() -> bool:
@@ -90,6 +104,46 @@ def is_case_participant(conn, case_id: int, user_id: int) -> bool:
     return user_id in {case['client_user_id'], case['lawyer_user_id']}
 
 
+def _sanitize_filename(filename: str) -> str:
+    base = Path(filename).name.strip()
+    return base or 'document'
+
+
+def _build_case_document_storage_key(case_id: int, original_filename: str) -> str:
+    ext = Path(original_filename).suffix[:16]
+    return f"case_{case_id}/{secrets.token_urlsafe(18)}{ext}"
+
+
+def _sign_download_token(document_id: int, user_id: int, expires_at: int) -> str:
+    payload = f'{document_id}:{user_id}:{expires_at}'
+    return hmac.new(get_secret_key().encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _build_signed_download_url(document_id: int, user_id: int, ttl_s: int = SIGNED_URL_TTL_SECONDS) -> str:
+    expires_at = int(time.time()) + ttl_s
+    signature = _sign_download_token(document_id, user_id, expires_at)
+    return f'/api/case-documents/{document_id}/download?expires={expires_at}&sig={signature}'
+
+
+def _validate_case_document_upload(upload: UploadFile, data: bytes) -> None:
+    mime = (upload.content_type or '').lower().strip()
+    if mime not in ALLOWED_CASE_DOCUMENT_MIME_TYPES:
+        raise HTTPException(status_code=400, detail='Unsupported file type')
+    size = len(data)
+    if size == 0:
+        raise HTTPException(status_code=400, detail='Uploaded file is empty')
+    if size > MAX_CASE_DOCUMENT_SIZE:
+        raise HTTPException(status_code=400, detail='File size exceeds allowed limit')
+
+
+def _resolve_case_document_path(storage_key: str) -> Path:
+    path = (UPLOADS_DIR / storage_key).resolve()
+    root = UPLOADS_DIR.resolve()
+    if root not in path.parents and path != root:
+        raise HTTPException(status_code=400, detail='Invalid storage key')
+    return path
+
+
 def _render_with_csrf(template_name: str, request: Request, context: dict | None = None):
     payload = {'request': request}
     if context:
@@ -137,6 +191,15 @@ class MessagePayload(BaseModel):
     content: str = Field(min_length=1, max_length=3000)
 
 
+class CaseDocumentUploadResponse(BaseModel):
+    id: int
+    case_id: int
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    download_url: str
+
+
 class AIAssistPayload(BaseModel):
     question: str = Field(min_length=5, max_length=3000)
     policy_rules: list[str] | None = None
@@ -146,6 +209,7 @@ class AIAssistPayload(BaseModel):
 def startup() -> None:
     get_secret_key()
     init_db()
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get('/', response_class=HTMLResponse)
@@ -494,6 +558,111 @@ def list_messages(request: Request, case_id: int):
             (case_id,),
         ).fetchall()
     return {'success': True, 'data': [dict(x) for x in rows]}
+
+
+@app.post('/api/cases/{case_id}/documents')
+async def upload_case_document(request: Request, case_id: int, file: UploadFile = File(...)):
+    user = require_user(request, ['client', 'lawyer', 'admin'])
+    data = await file.read()
+    _validate_case_document_upload(file, data)
+    filename = _sanitize_filename(file.filename or 'document')
+
+    with get_conn() as conn:
+        case = conn.execute('SELECT id FROM cases WHERE id = ?', (case_id,)).fetchone()
+        if not case:
+            raise HTTPException(status_code=404, detail='Case not found')
+        if user['user_type'] != 'admin' and not is_case_participant(conn, case_id, user['user_id']):
+            raise HTTPException(status_code=403, detail='Only case participants can upload documents')
+
+        storage_key = _build_case_document_storage_key(case_id, filename)
+        disk_path = _resolve_case_document_path(storage_key)
+        disk_path.parent.mkdir(parents=True, exist_ok=True)
+        disk_path.write_bytes(data)
+
+        try:
+            cur = conn.execute(
+                '''
+                INSERT INTO case_documents (case_id, uploaded_by_user_id, original_filename, storage_key, mime_type, size_bytes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (case_id, user['user_id'], filename, storage_key, (file.content_type or '').lower().strip(), len(data)),
+            )
+        except Exception:
+            if disk_path.exists():
+                disk_path.unlink()
+            raise
+
+        doc_id = cur.lastrowid
+
+    log_action(user['user_id'], 'case.document.uploaded', 'case_document', doc_id, {'case_id': case_id, 'mime_type': file.content_type, 'size_bytes': len(data)})
+    return JSONResponse(
+        {
+            'success': True,
+            'data': CaseDocumentUploadResponse(
+                id=doc_id,
+                case_id=case_id,
+                original_filename=filename,
+                mime_type=(file.content_type or '').lower().strip(),
+                size_bytes=len(data),
+                download_url=_build_signed_download_url(doc_id, user['user_id']),
+            ).model_dump(),
+        },
+        status_code=201,
+    )
+
+
+@app.get('/api/cases/{case_id}/documents')
+def list_case_documents(request: Request, case_id: int):
+    user = require_user(request, ['client', 'lawyer', 'admin'])
+    with get_conn() as conn:
+        case = conn.execute('SELECT id FROM cases WHERE id = ?', (case_id,)).fetchone()
+        if not case:
+            raise HTTPException(status_code=404, detail='Case not found')
+        if user['user_type'] != 'admin' and not is_case_participant(conn, case_id, user['user_id']):
+            raise HTTPException(status_code=403, detail='Only case participants can view documents')
+
+        rows = conn.execute(
+            '''
+            SELECT id, case_id, uploaded_by_user_id, original_filename, mime_type, size_bytes, created_at
+            FROM case_documents
+            WHERE case_id = ?
+            ORDER BY id DESC
+            ''',
+            (case_id,),
+        ).fetchall()
+
+    data = []
+    for row in rows:
+        item = dict(row)
+        item['download_url'] = _build_signed_download_url(item['id'], user['user_id'])
+        data.append(item)
+    return {'success': True, 'data': data}
+
+
+@app.get('/api/case-documents/{document_id}/download')
+def download_case_document(request: Request, document_id: int, expires: int, sig: str):
+    user = require_user(request, ['client', 'lawyer', 'admin'])
+
+    if expires < int(time.time()):
+        raise HTTPException(status_code=403, detail='Signed URL expired')
+
+    expected_sig = _sign_download_token(document_id, user['user_id'], expires)
+    if not hmac.compare_digest(sig, expected_sig):
+        raise HTTPException(status_code=403, detail='Invalid signed URL')
+
+    with get_conn() as conn:
+        row = conn.execute('SELECT * FROM case_documents WHERE id = ?', (document_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail='Document not found')
+        if user['user_type'] != 'admin' and not is_case_participant(conn, row['case_id'], user['user_id']):
+            raise HTTPException(status_code=403, detail='Only case participants can download documents')
+
+    path = _resolve_case_document_path(row['storage_key'])
+    if not path.exists():
+        raise HTTPException(status_code=404, detail='Stored file missing')
+
+    log_action(user['user_id'], 'case.document.downloaded', 'case_document', document_id, {'case_id': row['case_id']})
+    return FileResponse(path, media_type=row['mime_type'], filename=row['original_filename'])
 
 
 @app.get('/api/admin/lawyer-verifications')

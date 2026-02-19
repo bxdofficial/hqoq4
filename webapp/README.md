@@ -25,6 +25,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - `GEMINI_API_KEY` اختياري لتشغيل الذكاء الاصطناعي.
 - `GEMINI_MODEL` اختياري (افتراضي: `gemini-1.5-flash`).
 - `AI_POLICY_RULES` اختياري (سطر لكل قاعدة إضافية ملزمة للرد).
+- `APP_UPLOADS_DIR` اختياري (افتراضي: `uploads`) لتخزين مرفقات القضايا.
+- `MAX_CASE_DOCUMENT_SIZE_BYTES` اختياري (افتراضي: 10MB).
+- `APP_SIGNED_URL_TTL_SECONDS` اختياري (افتراضي: 600 ثانية) لانتهاء صلاحية روابط تنزيل المستندات الموقعة.
 
 ## أهم الصفحات
 - `/` الصفحة الرئيسية
@@ -43,6 +46,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - `/api/payments/{payment_id}/process|release|refund` دورة الدفع (admin)
 - `/api/messages` إرسال رسالة ضمن قضية
 - `/api/messages/{case_id}` عرض رسائل قضية
+- `/api/cases/{case_id}/documents` رفع/عرض مستندات القضية مع روابط تنزيل موقعة
+- `/api/case-documents/{document_id}/download` تنزيل مستند عبر Signed URL
 - `/api/admin/lawyer-verifications` + `/review` مراجعة توثيق المحامين
 - `/api/admin/overview` مؤشرات تشغيلية
 - `/api/admin/audit-logs` سجل العمليات الحساسة
@@ -69,6 +74,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - ✅ Case management أساسي مع صلاحيات واضحة.
 - ✅ Payments lifecycle أساسي (pending/paid/released/refunded) بإدارة admin.
 - ✅ Messages per case مع تحقق مشاركة الأطراف.
+- ✅ Case documents مع تحقق MIME/الحجم + تنزيل عبر Signed URLs + تقييد الصلاحيات على المشاركين بالقضية.
 - ✅ Admin overview + audit logs.
 - ✅ AI endpoint مقيد باللوائح القابلة للضبط عبر المتغيرات.
 - ⚠️ يحتاج لاحقًا تكامل بوابة دفع حقيقية (webhooks) واختبارات آلية CI.
