@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}إدارة القضايا{% endblock %}
+{% block content %}
+<section class="glass" style="padding:24px;margin-bottom:20px;">
+  <h2>طابور القضايا</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;">
+    {% for s,label in [('all','الكل'),('pending','Pending'),('accepted','Accepted'),('in_progress','In progress'),('completed','Completed'),('rejected','Rejected'),('cancelled','Cancelled')] %}
+      <a class="btn {% if status==s %}btn-gold{% endif %}" href="/admin/cases?status={{ s }}&q={{ q|urlencode }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <form method="get" action="/admin/cases" style="display:flex;gap:8px;">
+    <input type="hidden" name="status" value="{{ status }}" />
+    <input name="q" value="{{ q }}" placeholder="بحث بعنوان القضية أو النوع أو العميل" style="flex:1;"/>
+    <button class="btn" type="submit">بحث</button>
+  </form>
+</section>
+<section class="table-wrap glass">
+  <table>
+    <thead><tr><th>#</th><th>العنوان</th><th>العميل</th><th>المحامي</th><th>الحالة</th><th>آخر إجراء</th><th>إجراءات</th></tr></thead>
+    <tbody>
+      {% for c in cases %}
+      {% set last = latest_actions.get(c.id) %}
+      <tr>
+        <td>#{{ c.id }}</td><td>{{ c.title }}</td><td>{{ c.client_name or '-' }}</td><td>{{ c.lawyer_name or '-' }}</td><td>{{ c.status }}</td>
+        <td>{% if last %}{{ last.actor_name or 'System' }}<br><small>{{ last.created_at }}</small>{% else %}-{% endif %}</td>
+        <td>
+          <select id="lawyer-{{ c.id }}">
+            <option value="">اختر محامي</option>
+            {% for l in lawyers %}<option value="{{ l.id }}">{{ l.full_name }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-sm btn-gold" onclick="assignCase({{ c.id }})">Assign</button>
+          <button class="btn btn-sm" onclick="changeCaseStatus({{ c.id }}, 'rejected')">Reject</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="table-empty">لا توجد قضايا مطابقة.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+async function assignCase(id) {
+  const lawyerId = Number(document.getElementById(`lawyer-${id}`).value);
+  if (!lawyerId) return alert('اختر محامياً أولاً');
+  if (!confirm(`تأكيد إسناد القضية #${id}؟`)) return;
+  const res = await fetch(`/api/cases/${id}/assign`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({lawyer_user_id: lawyerId})
+  });
+  if (res.ok) location.reload(); else alert('فشل الإسناد');
+}
+async function changeCaseStatus(id, status) {
+  if (!confirm(`تأكيد تحديث حالة القضية #${id} إلى ${status}؟`)) return;
+  const res = await fetch(`/api/cases/${id}/status`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status})
+  });
+  if (res.ok) location.reload(); else alert('فشل تحديث الحالة');
+}
+</script>
+{% endblock %}

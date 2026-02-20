@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}لوحة الإدارة | النظرة العامة{% endblock %}
+{% block content %}
+<section class="glass" style="padding:24px;margin-bottom:20px;">
+  <h2>لوحة الإدارة</h2>
+  <p style="color:var(--text-secondary)">إدارة الطلبات، القضايا، المدفوعات، النزاعات، وسجل التدقيق.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+    <a class="btn btn-gold" href="/admin">نظرة عامة</a>
+    <a class="btn" href="/admin/verifications">توثيق المحامين</a>
+    <a class="btn" href="/admin/cases">القضايا</a>
+    <a class="btn" href="/admin/payments">المدفوعات</a>
+    <a class="btn" href="/admin/disputes">النزاعات</a>
+    <a class="btn" href="/admin/audit-logs">سجل التدقيق</a>
+  </div>
+</section>
+
+<section class="stats-grid">
+  <div class="glass stat-card"><div class="stat-number">{{ overview.users_by_type.get('client', 0) }}</div><div class="stat-label">العملاء</div></div>
+  <div class="glass stat-card"><div class="stat-number">{{ overview.users_by_type.get('lawyer', 0) }}</div><div class="stat-label">المحامون</div></div>
+  <div class="glass stat-card"><div class="stat-number">{{ overview.pending_verifications }}</div><div class="stat-label">طلبات توثيق معلقة</div></div>
+  <div class="glass stat-card"><div class="stat-number">{{ overview.open_cases }}</div><div class="stat-label">قضايا مفتوحة</div></div>
+  <div class="glass stat-card"><div class="stat-number">{{ overview.pending_payments_in_escrow }}</div><div class="stat-label">مدفوعات محتجزة</div></div>
+  <div class="glass stat-card"><div class="stat-number">{{ overview.disputes }}</div><div class="stat-label">نزاعات</div></div>
+</section>
+{% endblock %}

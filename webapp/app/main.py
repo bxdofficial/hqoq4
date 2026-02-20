@@ -866,59 +866,86 @@ def update_profile(request: Request):
 @app.get('/admin', response_class=HTMLResponse)
 def admin_page(request: Request):
     user = require_user(request, ['admin'])
-    
+
     with get_conn() as conn:
         users = conn.execute('SELECT user_type, COUNT(*) c FROM users GROUP BY user_type').fetchall()
         pending_verifications = conn.execute("SELECT COUNT(*) c FROM lawyer_verification_requests WHERE status IN ('submitted','under_review')").fetchone()['c']
         open_cases = conn.execute("SELECT COUNT(*) c FROM cases WHERE status IN ('pending','accepted','in_progress')").fetchone()['c']
         pending_payments = conn.execute("SELECT COUNT(*) c FROM payments WHERE status IN ('pending','paid') AND escrow_status = 'held'").fetchone()['c']
-    
+        disputes_count = conn.execute("SELECT COUNT(*) c FROM payments WHERE status = 'refunded' OR notes LIKE '%نزاع%' OR notes LIKE '%dispute%'").fetchone()['c']
+
     overview = {
         'users_by_type': {row['user_type']: row['c'] for row in users},
         'pending_verifications': pending_verifications,
         'open_cases': open_cases,
         'pending_payments_in_escrow': pending_payments,
+        'disputes': disputes_count,
     }
-    
-    return templates.TemplateResponse('admin.html', {
+
+    return templates.TemplateResponse('admin/overview.html', {
         'request': request,
         'user': user,
-        'active_tab': 'overview',
         'overview': overview,
         'pending_verifications': pending_verifications,
     })
 
 
 @app.get('/admin/verifications', response_class=HTMLResponse)
-def admin_verifications_page(request: Request):
+def admin_verifications_page(request: Request, status: str = 'all', q: str = ''):
     user = require_user(request, ['admin'])
-    
+
+    allowed_statuses = {'all', 'submitted', 'under_review', 'approved', 'rejected'}
+    status = status if status in allowed_statuses else 'all'
+    q_like = f"%{q.strip().lower()}%"
+
     with get_conn() as conn:
         verifications = conn.execute(
             '''
             SELECT vr.*, u.full_name, u.email
             FROM lawyer_verification_requests vr
             JOIN users u ON u.id = vr.lawyer_user_id
+            WHERE (? = 'all' OR vr.status = ?)
+              AND (? = '' OR LOWER(u.full_name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(vr.bar_registration_number) LIKE ?)
             ORDER BY 
                 CASE WHEN vr.status IN ('submitted', 'under_review') THEN 0 ELSE 1 END,
                 vr.id DESC
-            '''
+            ''',
+            (status, status, q.strip(), q_like, q_like, q_like),
         ).fetchall()
         pending_verifications = conn.execute("SELECT COUNT(*) c FROM lawyer_verification_requests WHERE status IN ('submitted','under_review')").fetchone()['c']
+        audit_rows = conn.execute(
+            '''
+            SELECT al.target_id, al.created_at, al.action, u.full_name AS actor_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id = al.actor_user_id
+            WHERE al.target_type = 'verification_request'
+            ORDER BY al.id DESC
+            '''
+        ).fetchall()
+
+    latest_actions = {}
+    for row in audit_rows:
+        if row['target_id'] not in latest_actions:
+            latest_actions[row['target_id']] = dict(row)
     
-    return templates.TemplateResponse('admin.html', {
+    return templates.TemplateResponse('admin/verifications.html', {
         'request': request,
         'user': user,
-        'active_tab': 'verifications',
         'verifications': [dict(v) for v in verifications],
         'pending_verifications': pending_verifications,
+        'status': status,
+        'q': q,
+        'latest_actions': latest_actions,
     })
 
 
 @app.get('/admin/cases', response_class=HTMLResponse)
-def admin_cases_page(request: Request):
+def admin_cases_page(request: Request, status: str = 'all', q: str = ''):
     user = require_user(request, ['admin'])
-    
+    allowed_statuses = {'all', 'pending', 'accepted', 'rejected', 'in_progress', 'completed', 'cancelled'}
+    status = status if status in allowed_statuses else 'all'
+    q_like = f"%{q.strip().lower()}%"
+
     with get_conn() as conn:
         cases = conn.execute(
             '''
@@ -928,50 +955,183 @@ def admin_cases_page(request: Request):
             FROM cases c
             LEFT JOIN users client ON c.client_user_id = client.id
             LEFT JOIN users lawyer ON c.lawyer_user_id = lawyer.id
+            WHERE (? = 'all' OR c.status = ?)
+              AND (? = '' OR LOWER(c.title) LIKE ? OR LOWER(c.case_type) LIKE ? OR LOWER(client.full_name) LIKE ?)
             ORDER BY c.id DESC
             LIMIT 100
+            ''',
+            (status, status, q.strip(), q_like, q_like, q_like),
+        ).fetchall()
+        lawyers = conn.execute(
+            '''
+            SELECT id, full_name FROM users
+            WHERE user_type = 'lawyer' AND is_active = 1
+            ORDER BY is_verified DESC, full_name ASC
             '''
         ).fetchall()
         pending_verifications = conn.execute("SELECT COUNT(*) c FROM lawyer_verification_requests WHERE status IN ('submitted','under_review')").fetchone()['c']
+        audit_rows = conn.execute(
+            '''
+            SELECT al.target_id, al.created_at, al.action, u.full_name AS actor_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id = al.actor_user_id
+            WHERE al.target_type = 'case'
+            ORDER BY al.id DESC
+            '''
+        ).fetchall()
+
+    latest_actions = {}
+    for row in audit_rows:
+        if row['target_id'] not in latest_actions:
+            latest_actions[row['target_id']] = dict(row)
     
-    return templates.TemplateResponse('admin.html', {
+    return templates.TemplateResponse('admin/cases.html', {
         'request': request,
         'user': user,
-        'active_tab': 'cases',
         'cases': [dict(c) for c in cases],
+        'lawyers': [dict(l) for l in lawyers],
         'pending_verifications': pending_verifications,
+        'status': status,
+        'q': q,
+        'latest_actions': latest_actions,
     })
 
 
 @app.get('/admin/payments', response_class=HTMLResponse)
-def admin_payments_page(request: Request):
+def admin_payments_page(request: Request, status: str = 'all', q: str = ''):
     user = require_user(request, ['admin'])
-    
+    allowed_statuses = {'all', 'pending', 'paid', 'refunded', 'released', 'held'}
+    status = status if status in allowed_statuses else 'all'
+    q_like = f"%{q.strip().lower()}%"
+
     with get_conn() as conn:
-        payments = conn.execute('SELECT * FROM payments ORDER BY id DESC LIMIT 100').fetchall()
+        payments = conn.execute(
+            '''
+            SELECT p.*, c.title AS case_title, client.full_name AS client_name, lawyer.full_name AS lawyer_name
+            FROM payments p
+            LEFT JOIN cases c ON c.id = p.case_id
+            LEFT JOIN users client ON client.id = p.client_user_id
+            LEFT JOIN users lawyer ON lawyer.id = p.lawyer_user_id
+            WHERE (
+                ? = 'all'
+                OR (? = 'released' AND p.escrow_status = 'released')
+                OR (? = 'held' AND p.escrow_status = 'held')
+                OR p.status = ?
+            )
+              AND (? = '' OR LOWER(COALESCE(c.title, '')) LIKE ? OR LOWER(COALESCE(client.full_name, '')) LIKE ? OR LOWER(COALESCE(lawyer.full_name, '')) LIKE ? OR LOWER(COALESCE(p.transaction_ref, '')) LIKE ?)
+            ORDER BY p.id DESC
+            LIMIT 100
+            ''',
+            (status, status, status, status, q.strip(), q_like, q_like, q_like, q_like),
+        ).fetchall()
         pending_verifications = conn.execute("SELECT COUNT(*) c FROM lawyer_verification_requests WHERE status IN ('submitted','under_review')").fetchone()['c']
+        audit_rows = conn.execute(
+            '''
+            SELECT al.target_id, al.created_at, al.action, u.full_name AS actor_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id = al.actor_user_id
+            WHERE al.target_type = 'payment'
+            ORDER BY al.id DESC
+            '''
+        ).fetchall()
+
+    latest_actions = {}
+    for row in audit_rows:
+        if row['target_id'] not in latest_actions:
+            latest_actions[row['target_id']] = dict(row)
     
-    return templates.TemplateResponse('admin.html', {
+    return templates.TemplateResponse('admin/payments.html', {
         'request': request,
         'user': user,
-        'active_tab': 'payments',
         'payments': [dict(p) for p in payments],
         'pending_verifications': pending_verifications,
+        'status': status,
+        'q': q,
+        'latest_actions': latest_actions,
+    })
+
+
+@app.get('/admin/disputes', response_class=HTMLResponse)
+def admin_disputes_page(request: Request, status: str = 'all', q: str = ''):
+    user = require_user(request, ['admin'])
+    allowed_statuses = {'all', 'open', 'resolved'}
+    status = status if status in allowed_statuses else 'all'
+    q_like = f"%{q.strip().lower()}%"
+
+    with get_conn() as conn:
+        disputes = conn.execute(
+            '''
+            SELECT p.*, c.title AS case_title, client.full_name AS client_name, lawyer.full_name AS lawyer_name
+            FROM payments p
+            LEFT JOIN cases c ON c.id = p.case_id
+            LEFT JOIN users client ON client.id = p.client_user_id
+            LEFT JOIN users lawyer ON lawyer.id = p.lawyer_user_id
+            WHERE (p.status = 'refunded' OR p.notes LIKE '%نزاع%' OR p.notes LIKE '%dispute%')
+              AND (
+                  ? = 'all'
+                  OR (? = 'open' AND p.status != 'refunded')
+                  OR (? = 'resolved' AND p.status = 'refunded')
+              )
+              AND (? = '' OR LOWER(COALESCE(c.title, '')) LIKE ? OR LOWER(COALESCE(client.full_name, '')) LIKE ? OR LOWER(COALESCE(lawyer.full_name, '')) LIKE ? OR LOWER(COALESCE(p.notes, '')) LIKE ?)
+            ORDER BY p.updated_at DESC, p.id DESC
+            LIMIT 100
+            ''',
+            (status, status, status, q.strip(), q_like, q_like, q_like, q_like),
+        ).fetchall()
+        pending_verifications = conn.execute("SELECT COUNT(*) c FROM lawyer_verification_requests WHERE status IN ('submitted','under_review')").fetchone()['c']
+        audit_rows = conn.execute(
+            '''
+            SELECT al.target_id, al.created_at, al.action, u.full_name AS actor_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id = al.actor_user_id
+            WHERE al.target_type = 'payment'
+            ORDER BY al.id DESC
+            '''
+        ).fetchall()
+
+    latest_actions = {}
+    for row in audit_rows:
+        if row['target_id'] not in latest_actions:
+            latest_actions[row['target_id']] = dict(row)
+
+    return templates.TemplateResponse('admin/disputes.html', {
+        'request': request,
+        'user': user,
+        'disputes': [dict(d) for d in disputes],
+        'pending_verifications': pending_verifications,
+        'status': status,
+        'q': q,
+        'latest_actions': latest_actions,
     })
 
 
 @app.get('/admin/audit-logs', response_class=HTMLResponse)
-def admin_audit_logs_page(request: Request):
+def admin_audit_logs_page(request: Request, q: str = '', action: str = 'all'):
     user = require_user(request, ['admin'])
-    
+
+    q_like = f"%{q.strip().lower()}%"
     with get_conn() as conn:
-        audit_logs = conn.execute('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 200').fetchall()
+        audit_logs = conn.execute(
+            '''
+            SELECT al.*, u.full_name AS actor_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id = al.actor_user_id
+            WHERE (? = 'all' OR al.action = ?)
+              AND (? = '' OR LOWER(COALESCE(u.full_name, '')) LIKE ? OR LOWER(al.action) LIKE ? OR LOWER(COALESCE(al.target_type, '')) LIKE ?)
+            ORDER BY al.id DESC
+            LIMIT 200
+            ''',
+            (action, action, q.strip(), q_like, q_like, q_like),
+        ).fetchall()
+        actions = conn.execute('SELECT DISTINCT action FROM audit_logs ORDER BY action ASC').fetchall()
         pending_verifications = conn.execute("SELECT COUNT(*) c FROM lawyer_verification_requests WHERE status IN ('submitted','under_review')").fetchone()['c']
-    
-    return templates.TemplateResponse('admin.html', {
+
+    return templates.TemplateResponse('admin/audit_logs.html', {
         'request': request,
         'user': user,
-        'active_tab': 'audit',
         'audit_logs': [dict(log) for log in audit_logs],
+        'actions': [row['action'] for row in actions],
         'pending_verifications': pending_verifications,
+        'q': q,
+        'action': action,
     })
