@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}المساعد الذكي{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 900px; margin:2rem auto;">
+  <h1>المساعد القانوني الذكي</h1>
+  <div class="card" style="padding:1rem; margin-bottom:1rem;">يعمل المساعد ضمن ضوابط الامتثال فقط.</div>
+
+  <form class="card" method="post" action="/api/ai/assist" style="padding:1rem;">
+    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token }}">{% endif %}
+    <label for="question">سؤالك</label>
+    <textarea id="question" name="question" rows="5" style="width:100%" placeholder="اكتب سؤالك القانوني العام هنا"></textarea>
+    <div style="margin-top:.5rem; font-size:.95rem;">Loading state: جاري تجهيز الإجابة…</div>
+    <div style="margin-top:.5rem; color:#b91c1c;">Error state: في حال تعذر الخدمة، ستظهر رسالة توضيحية.</div>
+    <button class="btn" style="margin-top:.75rem;" type="submit">إرسال السؤال</button>
+  </form>
+
+  <div class="card" style="padding:1rem; margin-top:1rem;">
+    <h3>Empty state</h3>
+    <p>لا توجد إجابات بعد. أرسل سؤالاً للبدء.</p>
+  </div>
+</section>
+{% endblock %}

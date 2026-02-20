@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}تفاصيل القضية{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 1000px; margin: 2rem auto;">
+  <h1>تفاصيل القضية</h1>
+
+  <div class="card" style="padding:1rem; margin:1rem 0;">
+    <strong>حالة التحميل:</strong>
+    <div data-state="loading">جاري تحميل تفاصيل القضية…</div>
+    <div data-state="error" style="display:none; color:#b91c1c;">حدث خطأ أثناء التحميل. حاول التحديث.</div>
+  </div>
+
+  {% if case %}
+    <article class="card" style="padding:1rem; margin-bottom:1rem;">
+      <h2>{{ case.title or 'بدون عنوان' }}</h2>
+      <p><strong>النوع:</strong> {{ case.case_type or 'غير محدد' }}</p>
+      <p><strong>الحالة:</strong> {{ case.status or 'غير متاحة' }}</p>
+      <p><strong>الوصف:</strong> {{ case.description or 'لا يوجد وصف حالياً.' }}</p>
+    </article>
+
+    <article class="card" style="padding:1rem; margin-bottom:1rem;">
+      <h3>الأطراف</h3>
+      <p><strong>العميل:</strong> {{ client.full_name if client else 'غير متاح' }}</p>
+      <p><strong>المحامي:</strong> {{ lawyer.full_name if lawyer else 'لم يتم التعيين بعد' }}</p>
+    </article>
+
+    <article class="card" style="padding:1rem;">
+      <h3>المدفوعات</h3>
+      {% if payments %}
+        <ul>
+          {% for payment in payments %}
+            <li>#{{ payment.id }} — {{ payment.amount }} — {{ payment.status or 'pending' }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>لا توجد مدفوعات مرتبطة بهذه القضية حالياً. (Empty state)</p>
+      {% endif %}
+    </article>
+  {% else %}
+    <article class="card" style="padding:1rem;">
+      <p>تعذر تحميل بيانات القضية. (Error state)</p>
+    </article>
+  {% endif %}
+</section>
+{% endblock %}

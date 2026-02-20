@@ -91,9 +91,10 @@ def is_case_participant(conn, case_id: int, user_id: int) -> bool:
 
 
 def _render_with_csrf(template_name: str, request: Request, context: dict | None = None):
-    payload = {'request': request}
+    payload = {'request': request, 'user': current_user(request)}
     if context:
         payload.update(context)
+    payload.setdefault('user', current_user(request))
     csrf_token = issue_csrf_token()
     payload['csrf_token'] = csrf_token
     response = templates.TemplateResponse(template_name, payload)
@@ -886,6 +887,10 @@ def admin_page(request: Request):
         'active_tab': 'overview',
         'overview': overview,
         'pending_verifications': pending_verifications,
+        'verifications': [],
+        'cases': [],
+        'payments': [],
+        'audit_logs': [],
     })
 
 
@@ -910,7 +915,11 @@ def admin_verifications_page(request: Request):
         'request': request,
         'user': user,
         'active_tab': 'verifications',
+        'overview': {},
         'verifications': [dict(v) for v in verifications],
+        'cases': [],
+        'payments': [],
+        'audit_logs': [],
         'pending_verifications': pending_verifications,
     })
 
@@ -938,7 +947,11 @@ def admin_cases_page(request: Request):
         'request': request,
         'user': user,
         'active_tab': 'cases',
+        'overview': {},
+        'verifications': [],
         'cases': [dict(c) for c in cases],
+        'payments': [],
+        'audit_logs': [],
         'pending_verifications': pending_verifications,
     })
 
@@ -955,7 +968,11 @@ def admin_payments_page(request: Request):
         'request': request,
         'user': user,
         'active_tab': 'payments',
+        'overview': {},
+        'verifications': [],
+        'cases': [],
         'payments': [dict(p) for p in payments],
+        'audit_logs': [],
         'pending_verifications': pending_verifications,
     })
 
@@ -972,6 +989,10 @@ def admin_audit_logs_page(request: Request):
         'request': request,
         'user': user,
         'active_tab': 'audit',
+        'overview': {},
+        'verifications': [],
+        'cases': [],
+        'payments': [],
         'audit_logs': [dict(log) for log in audit_logs],
         'pending_verifications': pending_verifications,
     })

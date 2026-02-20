@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}رسائل القضية{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 1000px; margin: 2rem auto;">
+  <h1>الرسائل</h1>
+  <p>القضية: {{ case.title if case else 'غير متاحة' }}</p>
+  <p>الطرف الآخر: {{ other_party.full_name if other_party else 'غير محدد بعد' }}</p>
+
+  <div class="card" style="padding:1rem; margin:1rem 0;">
+    <strong>Loading state:</strong> جاري تحميل المحادثة…
+  </div>
+
+  {% if messages %}
+    <ul class="card" style="padding:1rem;">
+      {% for msg in messages %}
+        <li style="margin-bottom:.75rem;">
+          <div><strong>من:</strong> {{ msg.sender_user_id }}</div>
+          <div>{{ msg.content or 'رسالة فارغة' }}</div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="card" style="padding:1rem;">لا توجد رسائل بعد. (Empty state)</div>
+  {% endif %}
+
+  {% if csrf_token and other_party_id %}
+  <form method="post" action="/api/messages" class="card" style="padding:1rem; margin-top:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="case_id" value="{{ case.id if case else '' }}">
+    <input type="hidden" name="receiver_user_id" value="{{ other_party_id }}">
+    <label for="content">رسالة جديدة</label>
+    <textarea id="content" name="content" rows="4" style="width:100%" placeholder="اكتب رسالتك"></textarea>
+    <p style="color:#b91c1c; display:none;" data-state="error">فشل إرسال الرسالة. (Error state)</p>
+    <button type="submit" class="btn" style="margin-top:.5rem;">إرسال</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

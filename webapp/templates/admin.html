@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}لوحة الإدارة{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 1100px; margin:2rem auto;">
+  <h1>الإدارة</h1>
+  <div class="card" style="padding:1rem; margin-bottom:1rem;">Loading state: جاري تحميل بيانات الإدارة…</div>
+
+  <nav class="card" style="padding:1rem; margin-bottom:1rem;">
+    <a href="/admin">نظرة عامة</a> |
+    <a href="/admin/verifications">التحقق من المحامين{% if pending_verifications %} ({{ pending_verifications }}){% endif %}</a> |
+    <a href="/admin/cases">القضايا</a> |
+    <a href="/admin/payments">المدفوعات</a> |
+    <a href="/admin/audit-logs">سجل التدقيق</a>
+  </nav>
+
+  {% if active_tab == 'overview' %}
+    <article class="card" style="padding:1rem;">
+      <h2>نظرة عامة</h2>
+      <p><strong>مستخدمون:</strong> {{ overview.users_by_type if overview else {} }}</p>
+      <p><strong>طلبات تحقق معلقة:</strong> {{ overview.pending_verifications if overview else 0 }}</p>
+      <p><strong>قضايا مفتوحة:</strong> {{ overview.open_cases if overview else 0 }}</p>
+      <p><strong>مدفوعات في الضمان:</strong> {{ overview.pending_payments_in_escrow if overview else 0 }}</p>
+    </article>
+  {% elif active_tab == 'verifications' %}
+    <article class="card" style="padding:1rem;">
+      <h2>طلبات التحقق</h2>
+      {% if verifications %}
+        <ul>{% for v in verifications %}<li>#{{ v.id }} - {{ v.full_name }} - {{ v.status }}</li>{% endfor %}</ul>
+      {% else %}
+        <p>لا توجد طلبات تحقق حالياً. (Empty state)</p>
+      {% endif %}
+    </article>
+  {% elif active_tab == 'cases' %}
+    <article class="card" style="padding:1rem;">
+      <h2>القضايا</h2>
+      {% if cases %}
+        <ul>{% for c in cases %}<li>#{{ c.id }} - {{ c.title }} - {{ c.status }}</li>{% endfor %}</ul>
+      {% else %}
+        <p>لا توجد قضايا متاحة. (Empty state)</p>
+      {% endif %}
+    </article>
+  {% elif active_tab == 'payments' %}
+    <article class="card" style="padding:1rem;">
+      <h2>المدفوعات</h2>
+      {% if payments %}
+        <ul>{% for p in payments %}<li>#{{ p.id }} - {{ p.amount }} - {{ p.status }}</li>{% endfor %}</ul>
+      {% else %}
+        <p>لا توجد مدفوعات لعرضها. (Empty state)</p>
+      {% endif %}
+    </article>
+  {% elif active_tab == 'audit' %}
+    <article class="card" style="padding:1rem;">
+      <h2>سجل التدقيق</h2>
+      {% if audit_logs %}
+        <ul>{% for log in audit_logs %}<li>#{{ log.id }} - {{ log.action }}</li>{% endfor %}</ul>
+      {% else %}
+        <p>لا توجد سجلات تدقيق. (Empty state)</p>
+      {% endif %}
+    </article>
+  {% else %}
+    <article class="card" style="padding:1rem; color:#b91c1c;">Error state: تبويب إداري غير معروف.</article>
+  {% endif %}
+
+  <div class="card" style="padding:1rem; margin-top:1rem; color:#b91c1c;">Error state: إذا فشل الاستعلام الإداري ستظهر رسالة مناسبة هنا.</div>
+</section>
+{% endblock %}
