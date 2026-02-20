@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}الملف الشخصي{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 900px; margin:2rem auto;">
+  <h1>الملف الشخصي</h1>
+  <div class="card" style="padding:1rem; margin-bottom:1rem;">Loading state: جاري تحميل بيانات الحساب…</div>
+
+  {% if profile %}
+  <article class="card" style="padding:1rem;">
+    <p><strong>الاسم:</strong> {{ profile.full_name or 'غير محدد' }}</p>
+    <p><strong>البريد:</strong> {{ profile.email or 'غير متاح' }}</p>
+    <p><strong>نوع الحساب:</strong> {{ profile.user_type or 'غير معروف' }}</p>
+    <p><strong>عدد القضايا:</strong> {{ cases_count or 0 }}</p>
+    <p><strong>عدد المدفوعات:</strong> {{ payments_count or 0 }}</p>
+  </article>
+
+  {% if lawyer_data %}
+  <article class="card" style="padding:1rem; margin-top:1rem;">
+    <h3>بيانات المحامي</h3>
+    <p><strong>المدينة:</strong> {{ lawyer_data.city or 'غير متاحة' }}</p>
+    <p><strong>المحافظة:</strong> {{ lawyer_data.governorate or 'غير متاحة' }}</p>
+    <p><strong>الحد الأدنى للاستشارة:</strong> {{ lawyer_data.min_consultation_fee or 0 }}</p>
+  </article>
+  {% endif %}
+  {% else %}
+  <article class="card" style="padding:1rem; color:#b91c1c;">Error state: تعذر تحميل الملف الشخصي.</article>
+  {% endif %}
+
+  <div class="card" style="padding:1rem; margin-top:1rem;">Empty state: يمكن تحديث بياناتك لاحقاً من هذه الصفحة.</div>
+</section>
+{% endblock %}

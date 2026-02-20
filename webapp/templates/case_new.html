@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}قضية جديدة{% endblock %}
+{% block content %}
+<section class="container" style="max-width:900px; margin:2rem auto;">
+  <h1>إنشاء قضية جديدة</h1>
+  <div class="card" style="padding:1rem; margin-bottom:1rem;">Loading state: تجهيز النموذج…</div>
+
+  <form method="post" action="/cases/new" class="card" style="padding:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if lawyer_id %}<input type="hidden" name="lawyer_id" value="{{ lawyer_id }}">{% endif %}
+    <label>العنوان <input name="title" required></label><br>
+    <label>النوع <input name="case_type" required></label><br>
+    <label>الوصف <textarea name="description" required></textarea></label><br>
+    <button class="btn" type="submit">حفظ</button>
+  </form>
+
+  {% if lawyer %}
+  <div class="card" style="padding:1rem; margin-top:1rem;">المحامي المحدد: {{ lawyer.full_name }}</div>
+  {% else %}
+  <div class="card" style="padding:1rem; margin-top:1rem;">Empty state: لم يتم اختيار محامٍ بعد.</div>
+  {% endif %}
+
+  <div class="card" style="padding:1rem; margin-top:1rem; color:#b91c1c;">Error state: يرجى مراجعة الحقول عند حدوث مشكلة.</div>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}ملف المحامي{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 900px; margin:2rem auto;">
+  <h1>ملف المحامي</h1>
+  <div class="card" style="padding:1rem; margin-bottom:1rem;">جاري التحميل… (Loading state)</div>
+
+  {% if lawyer %}
+  <article class="card" style="padding:1rem;">
+    <h2>{{ lawyer.full_name or 'محامي بدون اسم' }}</h2>
+    <p><strong>البريد:</strong> {{ lawyer.email or 'غير متاح' }}</p>
+    <p><strong>موثق:</strong> {{ 'نعم' if lawyer.is_verified else 'لا' }}</p>
+    <p><strong>رقم القيد:</strong> {{ lawyer_data.bar_registration_number if lawyer_data else 'غير متاح' }}</p>
+    <p><strong>المدينة:</strong> {{ lawyer_data.city if lawyer_data else 'غير متاح' }}</p>
+    <p><strong>نبذة:</strong> {{ lawyer_data.bio if lawyer_data and lawyer_data.bio else 'لا توجد نبذة حالياً.' }}</p>
+  </article>
+  {% else %}
+  <article class="card" style="padding:1rem; color:#b91c1c;">تعذر تحميل ملف المحامي. (Error state)</article>
+  {% endif %}
+</section>
+{% endblock %}

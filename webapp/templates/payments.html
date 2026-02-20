@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}المدفوعات{% endblock %}
+{% block content %}
+<section class="container" style="max-width: 1000px; margin:2rem auto;">
+  <h1>المدفوعات</h1>
+  <div class="card" style="padding:1rem; margin-bottom:1rem;">Loading state: جاري جلب بيانات المدفوعات…</div>
+
+  <article class="card" style="padding:1rem; margin-bottom:1rem;">
+    <p><strong>إجمالي العمليات:</strong> {{ payments|length }}</p>
+    <p><strong>معلقة:</strong> {{ total_pending or 0 }}</p>
+    <p><strong>مدفوعة:</strong> {{ total_paid or 0 }}</p>
+    <p><strong>داخل الضمان:</strong> {{ total_held or 0 }}</p>
+    <p><strong>إجمالي المبالغ:</strong> {{ total_amount or 0 }}</p>
+  </article>
+
+  {% if payments %}
+  <ul class="card" style="padding:1rem;">
+    {% for payment in payments %}
+      <li>#{{ payment.id }} — قضية {{ payment.case_id }} — {{ payment.amount }} — {{ payment.status }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="card" style="padding:1rem;">لا توجد مدفوعات متاحة حالياً. (Empty state)</div>
+  {% endif %}
+
+  <div class="card" style="padding:1rem; color:#b91c1c; margin-top:1rem;">Error state: إذا فشل تحميل البيانات ستظهر رسالة خطأ هنا.</div>
+</section>
+{% endblock %}
