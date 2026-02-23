@@ -1,426 +1,307 @@
-# حقوقي — Lead Reviewer Full Audit (SaaS + LegalTech Egypt)
+# Hoqouqi — Lead Review (Product + CTO + Security + Compliance) — Egypt Only
 
-> **مصدر التحليل:** مراجعة الكود والوثائق الموجودة داخل الريبو فقط، بدون افتراض بيانات سوق خارجية غير موجودة.
+## 0) Executive Summary
+- المشروع الحالي **MVP Foundation** جيد تقنياً، لكنه ليس جاهز إطلاق إنتاجي واسع بعد.
+- أقوى نقاطه: Authentication أساسي جيد، صلاحيات أدوار معقولة، عمليات Case/Payment/Message أساسية، وسجل تدقيق إداري.
+- أكبر فجواته قبل الإطلاق: تكامل دفع حقيقي، اختبارات آلية، مراقبة تشغيل (Observability)، تشديد الحماية المتقدمة (headers/CSRF strategy/API abuse), وامتثال تشغيلي قانوني أكثر تفصيلاً.
+- القرار التنفيذي: **استمرار على Python/FastAPI صحيح**، مع خطة 12 أسبوع لإغلاق المخاطر الحرجة والتحويل لإطلاق Pilot منضبط داخل مصر.
 
 ---
-
-## Review → Fix → Plan → Documentation
 
 ## A) Audit شامل (تفصيلي)
 
-### 1) وضوح القيمة (Value Proposition)
-**الحالة الحالية:**
-- الرسالة الأساسية موجودة تقنيًا: ربط عميل بمحامٍ، إنشاء قضية، متابعة الحالة، رسائل، ومدفوعات.  
-- لكن المنتج يقدم أيضًا مساعد AI بنفس مستوى الظهور تقريبًا، مما يخلق تشويشًا على القيمة الأساسية (Legal Operations vs AI Assistant).
+### 1) Value Proposition
+**الحالة:** مفهومة جزئياً: ربط عميل بمحامٍ + إدارة قضايا + مدفوعات + رسائل + AI مساعد سياسات.
 
-**المشكلة:**
-- تعدد الرسائل في مرحلة مبكرة يقلل الثقة ويشتت قرار الشراء.
-- لا يوجد تعريف صريح لـ"لماذا حقوقي أفضل من مكتب تقليدي + واتساب؟".
+**المشكلة:** ما زال هناك اتساع نطاق (AI + عمليات + سوق ثنائي) قد يربك رسالة المنتج.
 
-**الإصلاح العملي:**
-- صياغة قيمة واحدة للإطلاق:
-  - **"حقوقي منصة تشغيل قانوني داخل مصر: طلب خدمة قانونية، إسناد لمحامٍ موثّق، متابعة تنفيذ، ومدفوعات منضبطة."**
-- نقل AI من Hero Value إلى "ميزة مساعدة" داخل المنتج، مع تحذير قانوني دائم.
+**التوصية:** صياغة قيمة واحدة للإطلاق:
+> "منصة تشغيل قانوني داخل مصر: طلب خدمة قانونية، إسناد لمحامٍ مرخّص، متابعة حالة، ومدفوعات محكومة".
 
 ---
 
-### 2) السوق داخل مصر (العملاء + المحامين + المنافسين)
-**المتوفر في الريبو:**
-- لا يوجد Data-room سوقي (TAM/SAM/SOM، CAC benchmarks، نسب تحويل، شرائح مدفوعة).
-
-**تقييم صريح:**
-- لا يمكن إعلان جاهزية GTM قوية بدون Pilot Metrics.
-- افتراض النجاح التجاري الآن سيكون غير مهني.
-
-**الإصلاح العملي:**
-- قسّم Pilot مصر إلى 2 شرائح فقط بالبداية:
-  1) أفراد (قضايا أسرية/عمل/إيجارات/مخالفات بسيطة).
-  2) SMEs صغيرة (عقود، تحصيلات، نزاعات تجارية خفيفة).
-- اجمع خلال 8–12 أسبوع بيانات فعلية: conversion، TTFR، completion، dispute rate.
+### 2) السوق داخل مصر (شرائح + منافسين)
+- **شرائح العملاء:** أفراد/SMEs يحتاجون سرعة، وضوح تكلفة، ومحامٍ موثّق.
+- **شرائح المحامين:** محامون مستقلون يحتاجون تدفق عملاء، إدارة قضايا، وتحصيل منظم.
+- **فجوة رقمية فعلية:** ضعف التشغيل الموحّد (onboarding/assignment/status/payment trail).
+- **ملاحظة منهجية:** لا توجد في المشروع بيانات سوق كمية مؤكدة مرفقة؛ القرار يجب أن يبنى على Pilot metrics أولاً.
 
 ---
 
-### 3) الـMVP (يبنى أولًا / يؤجل)
-**الموجود الصالح للبداية:**
-- Auth + Roles + Sessions + CSRF + Rate Limit.
-- Case lifecycle أساسي.
-- Payment states أساسية.
-- Messaging داخل القضية.
-- Lawyer verification + Admin overview + Audit logs.
+### 3) MVP: ماذا يبنى الآن
+**Now (إجباري للإطلاق):**
+1. تسجيل/دخول + أدوار.
+2. إنشاء قضية + إسناد + تحديث حالة.
+3. رسائل مرتبطة بالقضية.
+4. مدفوعات أساسية (معالجة/إطلاق/استرداد) مع ضوابط Admin.
+5. توثيق محامين + مراجعة Admin.
 
-**ينقص الـMVP قبل إطلاق فعلي:**
-- Payment gateway حقيقي + webhooks + reconciliation.
-- سياسات تشغيل ونزاعات واضحة على الواجهة.
-- اختبارات آلية + CI.
-- مراقبة تشغيلية وإشعارات أعطال.
-
-**قرار البناء:**
-- **Now:** تشغيل قانوني منضبط (Intake → Assignment → Timeline → Payment controls → Dispute handling).
-- **Postpone:** أي قدرات AI قانونية متقدمة (صياغة ملزمة/توقع حكم/توصية نهائية).
+**Postpone:**
+- أي AI قانوني متقدم (توقّع أحكام/صياغة ملزمة).
+- Features تسويقية كبيرة بدون أثر مباشر على الإنجاز والإيراد.
 
 ---
 
-### 4) UX/UI (رحلات المستخدم والاحتكاكات)
-**ما يعمل جيدًا:**
-- Dashboard عربي واضح نسبيًا.
-- Empty state موجود.
-- مسارات أساسية: تسجيل، بحث محامين، إنشاء قضية، رسائل.
+### 4) UX/UI
+**الموجود:** صفحات Home/Login/Register/Dashboard/Search.
 
-**الاحتكاكات الفعلية:**
-- لا توجد رحلة Intake معيارية (wizard) تربط نوع القضية بالمستندات والسعر المتوقع.
-- لا يوجد Timeline موحد للقضية (Status + Messages + Payments + Disputes) في شاشة واحدة.
-- لا توجد رحلة نزاع/استرداد مفهومة للمستخدم النهائي.
-- لا توجد شاشات واضحة لـ SLA ووقت الرد المتوقع.
+**الاحتكاكات:**
+- لا يوجد Flow بصري واضح للنزاع أو الاسترداد.
+- لا توجد حالات Empty/Failure UX مفصلة.
+- لوحة Admin ليست واجهة كاملة؛ غالبًا API-first.
 
-**الإصلاح العملي:**
-- Intake wizard من 4 خطوات.
-- شاشة قضية موحدة (Timeline) مع CTA واضح بكل مرحلة.
-- شاشات خدمة ما بعد البيع: dispute open/track/resolve.
+**تحسينات سريعة:**
+- Wizard طلب خدمة (4 خطوات).
+- صفحة Timeline للقضية (status + messages + payments).
+- واجهة Admin تشغيلية فعلية (verification queue/dispute queue).
 
 ---
 
-### 5) نموذج الربح (قانوني داخل مصر + قابلية الدفع)
-**المقبول:**
-- رسوم منصة تقنية + رسوم تشغيل/معالجة + اشتراك محامين اختياري.
+### 5) نموذج الربح (قانوني في مصر)
+**مقبول مبدئيًا:** رسوم تقنية/تشغيل + اشتراك محامي اختياري + خدمات مضافة.
 
-**مخاطر تنظيمية:**
-- أي تسعير يوحي أن المنصة تقدم "خدمة قانونية بنفسها" وليس وسيطًا تقنيًا.
-- أي عرض "نتيجة مضمونة" أو تسويق AI كبديل لمحامٍ مرخص.
+**ممنوع/خطر:** تحصيل يبدو كأنه "أتعاب محاماة مباشرة" بدون وضوح العلاقة التعاقدية بين الطرفين.
 
-**الإصلاح العملي:**
-- تعاقدات صريحة ثلاثية العلاقة (عميل/محامٍ/منصة).
-- تفكيك الفاتورة: أتعاب المحامي مقابل رسوم المنصة بوضوح محاسبي.
-- تقديم خطط دفع بسيطة: fixed-fee services أولًا.
+**توصية:**
+- Legal framing واضح: المنصة وسيط تقني وتشغيلي.
+- عقود/شروط استخدام تحدد بوضوح العلاقة المالية والمسؤوليات.
 
 ---
 
-### 6) العمليات والتشغيل (Ops)
-**الموجود:**
-- Verification queue وقرارات admin.
-- Audit log للأحداث الحساسة.
+### 6) العمليات والتشغيل
+**الموجود:** verification requests + review + overview + audit logs.
 
-**النواقص الحرجة:**
-- SOPs تشغيلية رسمية (onboarding، fraud checks، disputes).
-- SLA معلن ومراقب لكل نوع خدمة.
-- Escalation matrix للحالات الحرجة.
-
-**الإصلاح العملي:**
-- كتابة Playbooks تشغيلية قصيرة قابلة للتنفيذ.
-- تحديد ownership لكل queue: verification/disputes/payments/support.
+**الناقص:**
+- SOPs تشغيل رسمية للنزاعات، SLA موثق، escalation matrix.
+- فريق دعم بPlaybooks واضحة.
 
 ---
 
-### 7) الثقة (KYC/Verification/سمعة)
-**الوضع الحالي:**
-- يوجد مسار توثيق محامٍ.
-- لا توجد دورة re-verification دورية.
-- لا توجد منظومة سمعة/تقييم منظمة تحكمها سياسات إساءة.
+### 7) الثقة (Trust)
+**إيجابي:**
+- Workflow توثيق محامٍ موجود.
+- Audit logging موجود للأحداث الحساسة.
 
-**الإصلاح العملي:**
-- Re-verification كل 12 شهر أو عند بلاغ جوهري.
-- Badge مستويات ثقة (موثق/نشط/ممتثل SLA).
-- نظام تقييم بآليات anti-abuse.
+**ناقص:**
+- دورة إعادة تحقق دورية للمحامي.
+- ضمانات استرداد موثقة للعميل في الواجهة.
 
 ---
 
-### 8) الأمان والخصوصية (Threat Model)
-**نقاط قوة:**
-- PBKDF2 hashing.
+### 8) الأمن والخصوصية
+**إيجابي (مطبق):**
+- PBKDF2 hashes.
 - Signed session tokens.
-- CSRF في النماذج الأساسية.
-- Role-based access في endpoints مهمة.
-- Audit logs موجودة.
+- CSRF (form flows).
+- Rate limiting أساسي.
+- RBAC على endpoints متعددة.
 
-**ثغرات/مخاطر:**
-- Rate limit in-memory (يفشل مع multi-instance).
-- لا يوجد Security headers middleware موحد (CSP/HSTS/X-Frame-Options...).
-- لا يوجد monitoring + SIEM-like logging strategy.
-- إدارة المفاتيح وأسرار الإنتاج غير موثقة تشغيليًا.
-
-**الإصلاح العملي:**
-- Redis-backed rate limiter.
-- Middleware headers أمنية إلزامية.
-- Structured logs + alerts + incident runbooks.
-- Secret rotation policy.
+**مخاطر متبقية:**
+- Rate limiting in-memory فقط (لا يناسب multi-instance).
+- لا توجد security headers middleware موحدة (CSP/HSTS/XFO...).
+- لا توجد طبقة logging/monitoring production-grade.
 
 ---
 
 ### 9) الامتثال داخل مصر
-**الموجود:**
-- AI endpoint يضيف تنبيه "معلومات عامة وليست استشارة نهائية".
+**إيجابي:**
+- AI endpoint فيه guardrails وتنبيه "معلومات عامة وليست استشارة نهائية".
+- توجيه للمحامي المرخص جزء من السياسة.
 
-**غير كافٍ قبل الإطلاق:**
-- Privacy Policy / Terms / Data Handling Policies بصياغة قانونية نهائية عربية.
-- تعريف مسؤولية المنصة وحدودها في كل touchpoint.
-- موافقات صريحة لمعالجة البيانات الحساسة.
-
-**Remove / Replace / Postpone (تنظيمي):**
-- **Remove:** أي Claim أن AI يقدم "استشارة قانونية نهائية" (خطر ممارسة قانون دون ترخيص).
-- **Replace:** أي UX لا يوضح دور المنصة كوسيط تقني إلى نصوص قانونية دقيقة.
-- **Postpone:** منتجات AI تولد مذكرات أو رأي قانوني قابل للاعتماد.
+**لازم قبل الإطلاق:**
+- وثائق Privacy/Terms/Data handling نهائية باللغة العربية القانونية.
+- Policy تفصيلية لتجنب "ممارسة قانون بدون ترخيص" على كل touchpoint.
 
 ---
 
-### 10) التقنية (Architecture + Stack + Integrations + تكلفة تقريبية)
-**حاليًا:** FastAPI + SQLite + Templates مناسب جدًا لPilot صغير.
-
-**مخاطر التوسع:**
-- SQLite + in-memory limits لن تصمد مع حمل أعلى.
-- لا توجد pipeline نشر واختبار آلي.
-
-**ترقية عملية:**
-- Postgres + Redis + Object Storage + Managed logs.
-- CI/CD أساسي + backups + migration tooling.
-
-**تكلفة تقريبية Pilot (مصر):**
-- بنية بسيطة مُدارة: منخفضة إلى متوسطة شهريًا (حسب الحركة).
-- القفزة الأكبر في التكلفة ستكون من الدفع الحقيقي، المراقبة، والدعم التشغيلي.
+### 10) التقنية (Architecture + تكلفة)
+- Stack مناسب لـPilot: FastAPI + SQLite + Templates.
+- للإطلاق الفعلي: ترقية إلى Postgres + Redis + Object Storage + managed logs.
+- تكلفة Pilot منخفضة، لكن قابلية التوسع تتطلب ترقية مكونات التخزين/الحد من الإساءة.
 
 ---
 
-### 11) الذكاء الاصطناعي (ما الممكن/غير الممكن)
-**ممكن الآن:**
-- FAQ قانوني عام داخل مصر.
-- Triage أولي غير ملزم.
-- توجيه المستخدم لمحامٍ مرخص.
+### 11) الذكاء الاصطناعي
+**ممكن الآن:** FAQ/Guidance عام مقيد بسياسات، routing للمحامي.
 
-**غير ممكن/غير آمن الآن:**
-- توصية قانونية نهائية.
-- توقع حكم أو نسبة فوز.
-- توليد عقود/مذكرات نهائية دون مراجعة محامٍ.
+**غير ممكن الآن (أو خطر):**
+- رأي قانوني نهائي.
+- توقع نتيجة قضية.
+- توليد مستندات ملزمة دون مراجعة محامٍ.
 
-**بدائل عملية:**
-- AI Draft + Human Review mandatory.
-- قوالب مستندات ثابتة validated مسبقًا بدل توليد حر.
+**بديل عملي:** AI للفرز والتصنيف واستخراج checklist فقط.
 
 ---
 
 ### 12) قابلية التوسع داخل مصر
-**الخطة الواقعية:**
-- Phase 1: محافظات رئيسية (القاهرة/الجيزة/الإسكندرية).
-- Phase 2: توسع محافظات عبر playbooks موحدة.
-- Phase 3: عروض B2B للـSMEs باشتراك.
-
-**شرط التوسع:**
-- إثبات Unit Economics أولًا: CAC payback، completion rate، dispute ratio.
+- توسع رأسي أولاً: القاهرة/الجيزة/الإسكندرية ثم المحافظات.
+- توسع أفقي بعد إثبات economics: شرائح B2B (SMEs) بخطط اشتراك.
 
 ---
 
 ## B) Findings Lists (قوائم قرار جاهزة)
 
 ### 1) Critical Issues (قبل الإطلاق)
-1. عدم وجود payment gateway فعلي مع webhooks وتسوية مالية.
-2. عدم وجود اختبارات آلية CI تغطي auth/rbac/payments/messages.
-3. غياب Observability production-grade (logs/metrics/alerts).
-4. غياب حزمة سياسات قانونية نهائية عربية (Privacy/Terms/Data handling).
-5. Rate limiting غير موزع ويعتمد على memory.
-6. غياب SOP تشغيل نزاعات واسترداد على مستوى الشركة.
+1. عدم وجود تكامل بوابة دفع حقيقية (webhooks + reconciliation).
+2. عدم وجود اختبارات آلية + CI.
+3. عدم وجود Observability production-grade.
+4. غياب وثائق امتثال قانونية نهائية (Privacy/Terms/Data processing).
+5. Rate limiting موزّع غير متاح (in-memory فقط).
 
 ### 2) High Impact Improvements
-1. Admin Ops Console كاملة (verification/disputes/payments).
-2. Timeline موحد للقضية.
-3. SLA واضحة ومعلنة ومقاسة.
-4. Migration إلى Postgres + Redis.
-5. Incident response + on-call minimal process.
+1. Admin console UI كاملة للتشغيل.
+2. Case timeline موحد (status/payment/messages).
+3. SLA + dispute workflow رسمي.
+4. Postgres + Redis migration plan.
+5. Monitoring + alerting + error budgets.
 
 ### 3) Nice-to-Have
-1. NPS/CSAT dashboards.
-2. Triage ذكي محسّن غير ملزم.
-3. Segmentation + lifecycle messaging.
+1. Smart triage غير قانوني (تصنيف نوع الخدمة).
+2. NPS/CSAT dashboards.
+3. Multi-language UX (AR/EN).
 
 ### 4) Remove / Replace / Postpone
-- **Remove:** Claims "AI استشارة نهائية" — سبب: خطر تنظيمي مباشر.
-- **Replace:** SQLite production -> Postgres — سبب: اعتمادية/تزامن/نسخ احتياطي.
-- **Replace:** in-memory limiter -> Redis — سبب: abuse control متعدد السيرفرات.
-- **Postpone:** توقع نتائج القضايا — سبب: مخاطر قانونية/سمعة عالية.
-- **Postpone:** ميزات نمو معقدة قبل إثبات التحويل الأساسي — سبب: تشتت موارد.
+- **Remove:** أي claim أن AI يقدّم "استشارة قانونية نهائية".
+- **Replace:** SQLite في الإنتاج بـPostgres.
+- **Replace:** in-memory rate limit بـRedis-backed.
+- **Postpone:** AI document drafting المتقدم.
+- **Postpone:** ميزات نمو غير مرتبطة مباشرة بالتحويل/الإيراد.
 
 ---
 
-## C) Fix Blueprint (خريطة إصلاح)
+## C) Fix Blueprint (نسخة مشروع 2.0)
 
-### نسخة مشروع 2.0 بعد التصحيح
-**Hoqouqi 2.0 = Legal Operations Platform (Egypt-Only)**
-- Intake مضبوط
-- Matching/assignment محكوم
-- Timeline وتنفيذ واضح
-- Payments governed
-- Dispute & trust layer
+### تعريف 2.0
+منصة Legal Operations داخل مصر: Intake → Assign → Track → Pay → Resolve.
 
 ### MVP النهائي (Feature List دقيقة)
-1. تسجيل/دخول + RBAC + جلسات آمنة.
-2. Intake wizard + تصنيف نوع الخدمة + مستندات مطلوبة.
-3. إنشاء قضية + إسناد محامٍ + حالات محددة رسميًا.
-4. رسائل مقيدة بأطراف القضية + سجلات زمنية.
-5. مدفوعات فعلية: initiate/confirm/release/refund مع سجل.
-6. توثيق محامين + مراجعة + re-verification jobs.
-7. Admin Ops: queues + filters + notes + actions.
-8. Audit logs + Monitoring + alerts.
-9. سياسات قانونية على كل نقطة تفاعل.
-10. AI guidance محدود + disclaimer دائم + escalation لمحامٍ.
+1. Auth + RBAC + Session Security.
+2. Client Intake form مضبوط.
+3. Case assignment (admin) + case status lifecycle.
+4. Case messaging (participant-only).
+5. Escrow-like payment states + admin actions.
+6. Lawyer verification queue + review decisions.
+7. Admin overview + audit logs.
 
 ### ما لن يُبنى الآن
-- AI legal opinion.
+- AI legal opinions.
 - توقع نتائج القضايا.
-- Marketplace social features.
-- Automation قانوني بلا مراجعة بشرية.
+- Marketplace معقد بميزات اجتماعية.
 
 ### أول 10 قرارات Product يجب حسمها
-1. نموذج الربح الأساسي (transaction vs subscription mix).
-2. سياسة refund الرسمية.
-3. SLA/response times لكل نوع خدمة.
-4. معايير قبول/رفض المحامين.
-5. حدود AI usage والتنبيهات الإلزامية.
-6. الحد الأدنى للبيانات المطلوبة per case.
-7. إطار النزاعات والتصعيد.
-8. نطاق المحافظات في Pilot.
-9. معايير إيقاف/تعليق حسابات إساءة الاستخدام.
-10. Gate criteria للانتقال من Pilot إلى Scale.
+1. نموذج الربح الأساسي (transaction fee vs subscription mix).
+2. سياسة refunds.
+3. SLA الأولي لكل نوع خدمة.
+4. نطاق المحافظات في Pilot.
+5. شروط قبول المحامين.
+6. سياسات التعليق/الإيقاف.
+7. حدود AI usage.
+8. سياسة توثيق الهوية والبيانات.
+9. قنوات الدعم الرسمية.
+10. معيار الانتقال من Pilot إلى Scale.
 
 ---
 
 ## D) خطة تنفيذ عملية (12 أسبوع)
 
-### Week 1
-- تثبيت Product scope النهائي + حذف أي Claims مخالفة.
-- إعداد KPIs baseline.
+### Week 1–2
+- تثبيت وثائق الامتثال (Privacy/Terms/Data handling).
+- تعريف SOP للنزاعات والدعم.
+- إعداد KPI baseline.
 
-### Week 2
-- إنهاء Privacy/Terms/Data Handling/Refund/Dispute policies (نسخة قانونية عربية).
+### Week 3–4
+- تنفيذ Postgres migration plan.
+- إدخال Redis rate limiter.
+- إضافة security headers middleware.
 
-### Week 3
-- تصميم Intake wizard + Case timeline UX.
+### Week 5–6
+- تكامل دفع فعلي + webhooks.
+- reconciliation report يومي.
 
-### Week 4
-- Redis rate-limit + security headers middleware.
+### Week 7–8
+- Admin Ops UI (verification/disputes/audit viewer).
+- case timeline UX.
 
-### Week 5
-- Payment gateway integration (sandbox + signature validation).
-
-### Week 6
-- Webhooks + reconciliation jobs + finance reports.
-
-### Week 7
-- Admin Ops Console (verification/dispute/payment queues).
-
-### Week 8
-- SLA tracking + support macros + escalation matrix.
-
-### Week 9
-- Test suite (unit/integration) + CI pipeline.
-
-### Week 10
-- Observability stack + alerting + incident playbook drills.
+### Week 9–10
+- testing suite (unit/integration/e2e) + CI pipeline.
+- load/smoke tests.
 
 ### Week 11
-- Pilot readiness review + legal/compliance sign-off.
+- Pilot go-live readiness review + incident playbooks.
 
 ### Week 12
-- إطلاق Pilot محدود + post-launch retrospective + reprioritization.
+- إطلاق Pilot مضبوط + post-launch review + backlog reprioritization.
 
 ### الفريق الأدنى المطلوب
-- Product Lead (0.5 FTE)
-- Backend Engineer (1 FTE)
-- Frontend/Fullstack Engineer (1 FTE)
-- QA Engineer (0.5 FTE)
-- Legal/Compliance Advisor (0.5 FTE)
-- Ops/Support Specialist (0.5 FTE)
+- Product Manager (part-time)
+- 1 Backend Engineer
+- 1 Full-stack/Frontend Engineer
+- 1 QA (part-time)
+- 1 Legal/Compliance Advisor (part-time)
+- 1 Ops/Support (part-time at launch)
 
 ### KPIs لكل مرحلة
-- Acquisition: visit→signup conversion.
-- Activation: % إنشاء قضية خلال 24 ساعة.
-- Operations: TTFR / case cycle time.
-- Quality: completion rate / dispute ratio.
-- Revenue: payment success / refund rate.
-- Trust: lawyer verification turnaround / abuse incidents.
+- Time to first response
+- Case completion rate
+- Payment success rate
+- Refund/dispute ratio
+- Verification turnaround time
+- Weekly active lawyers / active clients
 
 ### خطة جذب أول 50 محامي + أول 500 عميل
-**أول 50 محامي:**
-- Onboarding يدوي عالي الجودة (دفعات 10 محامين/أسبوع).
-- شراكات مع مكاتب صغيرة + مزايا عمولة أول 90 يوم.
-- Dashboard شفافة للأداء والدخل لبناء الاحتفاظ.
+**50 محامي:**
+- شراكات نقابية/مكاتب صغيرة، onboarding يدوي عالي الجودة، عمولة تفضيلية أول 3 أشهر.
 
-**أول 500 عميل:**
-- قنوات intent عالية: بحث، مجتمعات محلية، referrals.
-- عروض ثابتة السعر لخدمات محددة.
-- ضمانات تشغيل واضحة: SLA + refund policy + محامٍ موثق.
+**500 عميل:**
+- قنوات intent عالية (search + communities + referrals)،
+- عروض خدمات محددة التسعير,
+- SLA واضح + ضمان refund policy.
 
 ---
 
-## E) Documentation Pack (Project File — Ready to Copy)
+## E) Documentation Pack (جاهز للنسخ)
 
-## 1) الملخص التنفيذي
-حقوقي منصة تشغيل قانوني داخل مصر، تركز على إنجاز الخدمة القانونية بشكل موثوق (وليس استبدال المحامي بالذكاء الاصطناعي). جاهزية المشروع الحالية جيدة كنقطة انطلاق تقنية، لكنها تحتاج إغلاق فجوات تشغيل وامتثال ودفع قبل الإطلاق التجاري الواسع.
+### 1) ملخص تنفيذي
+حقوقي 2.0 منصة تشغيل قانوني مصرية تركّز على إنجاز الخدمة القانونية، وليس بيع “AI قانوني”.
 
-## 2) افتراضات المشروع
-- السوق المستهدف: مصر فقط.
-- الإطلاق: Pilot محدود جغرافيًا.
-- المنصة وسيط تقني/تشغيلي وليست جهة تقدم رأيًا قانونيًا نهائيًا.
-- النجاح يُقاس ببيانات تشغيل فعلية لا افتراضات.
+### 2) افتراضات المشروع
+- إطلاق داخل مصر فقط.
+- التوسع يبدأ من Pilot جغرافي محدود.
+- الامتثال القانوني مقدم على التوسع السريع.
 
-## 3) قرارات تمت الموافقة عليها
+### 3) قرارات تمت الموافقة عليها
 - منع AI legal final advice.
-- إلزام توثيق المحامي قبل استلام حالات حساسة.
-- Admin approval للعمليات المالية الحرجة.
-- تسجيل audit logs لكل عمليات حساسة.
-- تطبيق سياسات خصوصية/شروط استخدام عربية قبل الإطلاق.
+- اعتماد محامٍ قبل الاستلام.
+- Admin-only للعمليات المالية الحساسة.
+- Audit logs إلزامية لكل حدث حساس.
 
-## 4) قائمة المميزات (Now / Next / Later)
-**Now (MVP):**
-- Auth/RBAC/Sessions
-- Case intake + assignment + status
-- Messages
-- Payments lifecycle baseline
-- Lawyer verification
-- Admin queues + audit logs
+### 4) قائمة المميزات (Now / Next / Later)
+**Now:** Auth/RBAC, Cases, Verification, Messages, Payments baseline, Admin overview.
 
-**Next:**
-- Gateway حقيقي + webhooks + reconciliation
-- CI/tests
-- Monitoring/alerts
-- SLA dashboards
+**Next:** Payment gateway real integration, Admin UI كامل, CI/tests, monitoring.
 
-**Later:**
-- AI triage متقدم
-- B2B plans
-- Advanced analytics
+**Later:** Advanced AI triage, B2B bundles, analytics expansion.
 
-## 5) المخاطر وخطة تقليلها
-- **Compliance risk:** غموض دور المنصة قانونيًا → صياغات قانونية واضحة + مراجعة دورية.
-- **Payment risk:** نزاعات وتسويات غير منضبطة → webhooks + reconciliation + dispute SOP.
-- **Security risk:** abuse/multi-instance limits → Redis limiter + monitoring + incident response.
-- **Operational risk:** بطء التحقق والدعم → queues + ownership + SLA.
+### 5) المخاطر وخطة تقليلها
+- Risk: ثغرات تشغيل/امتثال → Mitigation: سياسات + تدقيق قانوني + playbooks.
+- Risk: فشل مدفوعات → Mitigation: webhook verification + reconciliation.
+- Risk: abuse/spam → Mitigation: Redis rate limit + anomaly alerts.
 
-## 6) السياسات المطلوبة
-- Privacy Policy (Arabic)
-- Terms of Service (Arabic)
+### 6) السياسات المطلوبة
+- Privacy Policy (AR)
+- Terms of Service (AR)
 - Data Handling & Retention Policy
-- Refund & Dispute Policy
-- Lawyer Verification & Re-verification Policy
-- Incident Response & Breach Notification Policy
+- Dispute & Refund Policy
+- Lawyer Verification Policy
 
-## 7) Backlog أولي + تعريفات واضحة
-### P0 (Must before launch)
-- Real payment integration
-- Redis rate limit
-- Security headers
-- Legal policy pack
-- CI + minimum tests
-- Monitoring + alerting
+### 7) Backlog أولي (P0/P1)
+**P0:** دفع حقيقي، CI، مراقبة، توثيق قانوني نهائي.
 
-### P1 (Should)
-- Admin ops console polish
-- Full case timeline
-- SLA reporting
-- Support tooling
-
-### P2 (Could)
-- AI triage quality upgrade
-- B2B onboarding flows
-- Advanced dashboards
+**P1:** Admin UI, SLA dashboards, scaling infra.
 
 ---
 
-## الحكم النهائي الصريح
-- **المشروع ليس جاهزًا لإطلاق تجاري واسع الآن.**
-- **المشروع قابل للتحويل إلى منتج قوي خلال 12 أسبوع** إذا تم تنفيذ P0 بدون تنازلات، خصوصًا (الدفع الحقيقي + الامتثال القانوني + المراقبة + الاختبارات).
+## ملحق: تقدير جاهزية الإطلاق
+- Pilot Readiness: **7/10** بعد إغلاق P0.
+- Scale Readiness: **4.5/10** حالياً قبل P0.
+
